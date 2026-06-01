@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hati - 智能渗透测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --bg-tertiary: #ececee;
+            --accent: #10b981;
+            --accent-hover: #0d9668;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --user-msg-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --bot-msg-bg: #f7f7f8;
+            --border-color: #e5e5e5;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --critical: #dc2626;
+            --high: #f97316;
+            --medium: #eab308;
+            --low: #22c55e;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-size: 24px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--accent), #059669);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 10px 15px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .chat-item {
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-primary);
+            border-left-color: var(--accent);
+        }
+
+        .chat-item.active {
+            background: var(--bg-tertiary);
+            border-left-color: var(--accent);
+        }
+
+        .delete-chat {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 4px;
+            margin-left: auto;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .chat-item:hover .delete-chat {
+            opacity: 1;
+        }
+
+        .delete-chat:hover {
+            color: #ef4444;
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Message Styles */
+        .message {
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .message.user .message-avatar {
+            background: var(--accent);
+        }
+
+        .message.bot .message-avatar {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+        }
+
+        .message-sender {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .message.user .message-sender {
+            color: var(--accent);
+        }
+
+        .message.bot .message-sender {
+            color: var(--text-secondary);
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .pause-btn {
+            margin-left: auto;
+            background: #f1f1f1;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pause-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .pause-btn.paused {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .message-content {
+            padding: 16px 20px;
+            border-radius: 16px;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        .message.user .message-content {
+            background: var(--user-msg-bg);
+            border-bottom-right-radius: 6px;
+        }
+
+        .message.bot .message-content {
+            background: var(--bot-msg-bg);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-content pre {
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            border: 1px solid var(--border-color);
+        }
+
+        .message-content code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+        }
+
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* Progress Card */
+        .progress-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .progress-icon {
+            font-size: 20px;
+        }
+
+        .progress-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border-left: 3px solid var(--border-color);
+        }
+
+        .progress-step.recon {
+            border-left-color: var(--accent);
+        }
+
+        .progress-step.vuln_scan {
+            border-left-color: var(--warning);
+        }
+
+        .progress-step.complete {
+            border-left-color: var(--success);
+        }
+
+        .step-status {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .step-status.pending {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+        }
+
+        .step-status.running {
+            background: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .step-status.done {
+            background: var(--success);
+        }
+
+        .step-text {
+            flex: 1;
+        }
+
+        .step-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .step-detail {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Result Card */
+        .result-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 8px 0;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-icon {
+            font-size: 28px;
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .result-summary {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .stat-item {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-value.danger {
+            color: var(--critical);
+        }
+
+        .stat-value.warning {
+            color: var(--warning);
+        }
+
+        .stat-value.success {
+            color: var(--success);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .result-section {
+            margin-top: 16px;
+        }
+
+        .result-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-list {
+            list-style: none;
+        }
+
+        .result-list li {
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .severity-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .severity-badge.critical {
+            background: rgba(220, 38, 38, 0.2);
+            color: var(--critical);
+        }
+
+        .severity-badge.high {
+            background: rgba(249, 115, 22, 0.2);
+            color: var(--high);
+        }
+
+        .severity-badge.medium {
+            background: rgba(234, 179, 8, 0.2);
+            color: var(--medium);
+        }
+
+        .severity-badge.low {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--low);
+        }
+
+        /* ChatGPT-style streaming gray text */
+        .streaming-card {
+            background: #f7f7f8;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 8px 0;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .streaming-card.dark {
+            background: #202123;
+            border-color: #3e3e3e;
+            color: #ececf1;
+        }
+
+        .streaming-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .streaming-card.dark .streaming-header {
+            border-bottom-color: #3e3e3e;
+        }
+
+        .streaming-cursor-line {
+            display: inline-block;
+            width: 2px;
+            height: 16px;
+            background: var(--accent);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .streaming-phase {
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .streaming-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .streaming-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: fadeInLine 0.3s ease forwards;
+        }
+
+        @keyframes fadeInLine {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .streaming-dot {
+            color: #666;
+            font-weight: bold;
+            min-width: 12px;
+        }
+
+        .streaming-card.dark .streaming-dot {
+            color: #999;
+        }
+
+        .streaming-text {
+            flex: 1;
+        }
+
+        .streaming-text .label {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .streaming-card.dark .streaming-text .label {
+            color: #999;
+        }
+
+        .streaming-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #374151;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+
+        .streaming-card.dark .streaming-cursor {
+            background: #ececf1;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Thinking indicator */
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            padding: 10px 0;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #message-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            max-height: 150px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        #message-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        #message-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .send-btn {
+            padding: 14px 28px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .send-btn:active {
+            transform: scale(0.98);
+        }
+
+        .send-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .stop-btn {
+            padding: 14px 20px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .stop-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .stop-btn:active {
+            transform: scale(0.98);
+        }
+
+        .stop-btn.visible {
+            display: block;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .welcome-logo {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .welcome-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--accent), #059669);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            max-width: 500px;
+        }
+
+        .quick-action {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .quick-action:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .quick-action-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .quick-action-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .quick-action-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="logo">🛡️</span>
+            <span class="title">Hati</span>
+        </div>
+        <div class="status-indicator">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">未连接</span>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="startNewChat()">+ 新对话</button>
+            </div>
+            <div class="chat-list">
+                <div class="chat-item active">当前对话</div>
+            </div>
+        </aside>
+
+        <section class="chat-area">
+            <div class="messages-container" id="messages-container">
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-logo">🛡️</div>
+                    <h1 class="welcome-title">Hati</h1>
+                    <p class="welcome-subtitle">Hati — 追月的狼</p>
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="quickAction('对目标进行渗透测试')">
+                            <div class="quick-action-icon">🎯</div>
+                            <div class="quick-action-title">渗透测试</div>
+                            <div class="quick-action-desc">完整的安全测试流程</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('查询漏洞')">
+                            <div class="quick-action-icon">🔍</div>
+                            <div class="quick-action-title">漏洞查询</div>
+                            <div class="quick-action-desc">搜索CVE/POC知识库</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('查看工具列表')">
+                            <div class="quick-action-icon">🔧</div>
+                            <div class="quick-action-title">工具使用</div>
+                            <div class="quick-action-desc">了解安全测试工具</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('帮助')">
+                            <div class="quick-action-icon">❓</div>
+                            <div class="quick-action-title">使用帮助</div>
+                            <div class="quick-action-desc">查看系统说明</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea
+                            id="message-input"
+                            placeholder="输入您的需求..."
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <button class="stop-btn" id="stop-btn" onclick="stopTask()">■ 停止</button>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // WebSocket 连接
+        let ws = null;
+        let clientId = null;
+        let isConnected = false;
+        let isPaused = false;
+        let messageQueue = [];
+
+        // 当前任务追踪
+        let currentTaskId = null;
+
+        // 对话管理
+        let currentConversationId = null;
+        let streamingCardId = null;  // 追踪当前流式卡片
+
+        // 初始化对话存储
+        function initConversations() {
+            const saved = localStorage.getItem('pentest_conversations');
+            if (saved) {
+                renderConversationList(JSON.parse(saved));
+            }
+        }
+
+        // 保存对话到 localStorage
+        function saveConversation() {
+            const container = document.getElementById('messages-container');
+            const messages = [];
+            container.querySelectorAll('.message').forEach(msg => {
+                const avatar = msg.querySelector('.message-avatar')?.textContent || '';
+                const sender = msg.querySelector('.message-sender')?.textContent || '';
+                const time = msg.querySelector('.message-time')?.textContent || '';
+                const content = msg.querySelector('.message-content')?.innerHTML || '';
+                const isUser = msg.classList.contains('user');
+                messages.push({ avatar, sender, time, content, isUser });
+            });
+
+            if (messages.length === 0) return;
+
+            const conversations = JSON.parse(localStorage.getItem('pentest_conversations') || '[]');
+            const firstUserMsg = messages.find(m => m.isUser);
+            // 去除HTML标签，截取前25个字符作为标题
+            const rawTitle = firstUserMsg?.content?.replace(/<[^>]*>/g, '').trim() || '新对话';
+            const displayTitle = rawTitle.length > 25 ? rawTitle.substring(0, 25) + '...' : rawTitle;
+
+            if (currentConversationId) {
+                // 更新现有对话
+                const idx = conversations.findIndex(c => c.id === currentConversationId);
+                if (idx !== -1) {
+                    conversations[idx].messages = messages;
+                    conversations[idx].title = displayTitle;
+                    conversations[idx].updatedAt = Date.now();
+                }
+            } else {
+                // 创建新对话
+                const newConv = {
+                    id: 'conv_' + Date.now(),
+                    title: displayTitle,
+                    messages: messages,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                conversations.unshift(newConv);
+                currentConversationId = newConv.id;
+            }
+
+            // 限制保存最多 50 个对话
+            while (conversations.length > 50) {
+                conversations.pop();
+            }
+
+            localStorage.setItem('pentest_conversations', JSON.stringify(conversations));
+            renderConversationList(conversations);
+        }
+
+        // 渲染对话列表
+        function renderConversationList(conversations) {
+            const list = document.querySelector('.chat-list');
+            if (!list) return;
+
+            list.innerHTML = conversations.map(conv => `
+                <div class="chat-item ${conv.id === currentConversationId ? 'active' : ''}"
+                     onclick="loadConversation('${conv.id}')">
+                    <span>${escapeHtml(conv.title)}</span>
+                    <button class="delete-chat" onclick="event.stopPropagation(); deleteConversation('${conv.id}')">×</button>
+                </div>
+            `).join('');
+        }
+
+        // 加载对话
+        function loadConversation(convId) {
+            const conversations = JSON.parse(localStorage.getItem('pentest_conversations') || '[]');
+            const conv = conversations.find(c => c.id === convId);
+            if (!conv) return;
+
+            currentConversationId = convId;
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+
+            conv.messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.isUser ? 'user' : 'bot'}`;
+                div.innerHTML = `
+                    <div class="message-header">
+                        <div class="message-avatar">${msg.avatar}</div>
+                        <span class="message-sender">${msg.sender}</span>
+                        <span class="message-time">${msg.time}</span>
+                    </div>
+                    <div class="message-content">${msg.content}</div>
+                `;
+                container.appendChild(div);
+            });
+
+            renderConversationList(conversations);
+            scrollToBottom();
+        }
+
+        // 删除对话
+        function deleteConversation(convId) {
+            let conversations = JSON.parse(localStorage.getItem('pentest_conversations') || '[]');
+            conversations = conversations.filter(c => c.id !== convId);
+            localStorage.setItem('pentest_conversations', JSON.stringify(conversations));
+
+            if (currentConversationId === convId) {
+                currentConversationId = null;
+                startNewChat();
+            }
+
+            renderConversationList(conversations);
+        }
+
+        // 开始新对话
+        function startNewChat() {
+            currentConversationId = null;
+            const container = document.getElementById('messages-container');
+            container.innerHTML = `
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-logo">🛡️</div>
+                    <h1 class="welcome-title">Hati</h1>
+                    <p class="welcome-subtitle">Hati — 追月的狼</p>
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="quickAction('对目标进行渗透测试')">
+                            <div class="quick-action-icon">🎯</div>
+                            <div class="quick-action-title">渗透测试</div>
+                            <div class="quick-action-desc">完整的安全测试流程</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('查询漏洞')">
+                            <div class="quick-action-icon">🔍</div>
+                            <div class="quick-action-title">漏洞查询</div>
+                            <div class="quick-action-desc">搜索CVE/POC知识库</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('查看工具列表')">
+                            <div class="quick-action-icon">🔧</div>
+                            <div class="quick-action-title">工具使用</div>
+                            <div class="quick-action-desc">了解安全测试工具</div>
+                        </div>
+                        <div class="quick-action" onclick="quickAction('帮助')">
+                            <div class="quick-action-icon">❓</div>
+                            <div class="quick-action-title">使用帮助</div>
+                            <div class="quick-action-desc">查看系统说明</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const conversations = JSON.parse(localStorage.getItem('pentest_conversations') || '[]');
+            renderConversationList(conversations);
+        }
+
+        // 快速操作
+        function quickAction(action) {
+            document.getElementById('message-input').value = action;
+            sendMessage();
+        }
+
+        // 生成客户端 ID
+        function generateClientId() {
+            return 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // 连接 WebSocket
+        function connect() {
+            clientId = generateClientId();
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${clientId}`;
+
+            updateStatus('connecting');
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                isConnected = true;
+                updateStatus('connected');
+                initConversations();
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                isConnected = false;
+                updateStatus('disconnected');
+                setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateStatus('error');
+            };
+        }
+
+        // 处理消息 - 所有内容都流式输出到同一个卡片
+        function handleMessage(data) {
+            switch(data.type) {
+                case 'welcome':
+                    hideWelcome();
+                    addBotMessage(data.content);
+                    break;
+                case 'text':
+                    addBotMessage(data.content);
+                    break;
+                case 'progress':
+                    // 提取 task_id 并显示停止按钮
+                    if (data.data?.task_id && !currentTaskId) {
+                        showStopButton(data.data.task_id);
+                    }
+                    if (isPaused) {
+                        messageQueue.push(data);
+                    } else {
+                        addStreamingProgress(data);
+                    }
+                    break;
+                case 'result':
+                    // 如果有流式卡片，追加到卡片；否则作为普通消息显示
+                    if (document.getElementById('streaming-content')) {
+                        finalizeStreamingResult(data);
+                    } else {
+                        addBotMessage(data.content);
+                    }
+                    break;
+                case 'error':
+                    addBotMessage(data.content, 'error');
+                    break;
+                case 'thinking':
+                    showThinking();
+                    break;
+                case 'action':
+                    // 创建流式主卡片，后续内容都追加到这里
+                    createStreamingCard(data);
+                    break;
+                case 'ai_token':
+                    // AI流式token，逐字追加到卡片
+                    appendAIToken(data.content);
+                    break;
+            }
+        }
+
+        // 追加AI流式token到当前卡片
+        let aiTokenBuffer = '';
+        function appendAIToken(token) {
+            if (!token) return;
+            aiTokenBuffer += token;
+
+            const streamingContent = document.getElementById('streaming-content');
+            if (!streamingContent) return;
+
+            // 更新或创建 AI 总结行
+            let aiLine = document.getElementById('ai-summary-line');
+            if (!aiLine) {
+                const cursorLine = streamingContent.querySelector('.streaming-cursor-line');
+                const div = document.createElement('div');
+                div.className = 'streaming-line';
+                div.style.animationDelay = '0ms';
+                div.innerHTML = `
+                    <span class="streaming-dot" style="color: #10b981;">🤖</span>
+                    <div id="ai-summary-line" style="color: #1a1a1a; line-height: 1.7;"></div>
+                `;
+                streamingContent.appendChild(div);
+                aiLine = document.getElementById('ai-summary-line');
+            }
+
+            // 逐字追加，格式化markdown
+            aiLine.innerHTML = formatContent(aiTokenBuffer);
+            scrollToBottom();
+        }
+
+        // 创建流式主卡片
+        function createStreamingCard(data) {
+            removeThinking();
+            hideWelcome();
+            aiTokenBuffer = '';  // 重置AI token缓冲
+
+            // 移除旧的流式卡片（如果存在），避免第二个任务写入第一个任务的卡片
+            const oldCard = document.getElementById('streaming-card');
+            if (oldCard) {
+                oldCard.remove();
+            }
+
+            const container = document.getElementById('messages-container');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            // 构建富化的初始内容
+            let initialContent = formatContent(data.content || data.data?.content || '');
+
+            // 如果有URL分析结果，添加页面信息
+            const urlAnalysis = data.data?.url_analysis;
+            const technologies = data.data?.technologies || [];
+            const ragFindings = data.data?.rag_findings || {};
+
+            if (urlAnalysis) {
+                initialContent += `<br><br><span style="color: #3b82f6; font-weight: 600;">🌐 页面分析:</span> ${escapeHtml(urlAnalysis.title || '未知页面')} | 状态: ${urlAnalysis.status} | 产品: ${urlAnalysis.detected_product || '未知'}<br>`;
+                if (technologies.length > 0) {
+                    initialContent += `<span style="color: #666;">🔧 技术栈: </span>${technologies.map(t => `<span style="background: #8b5cf620; color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-size: 12px;">${escapeHtml(t)}</span>`).join(' ')}<br>`;
+                }
+            }
+
+            // 如果有PoC知识库发现，添加漏洞信息
+            if (ragFindings.total > 0) {
+                const topVulns = ragFindings.top_vulnerabilities || [];
+                initialContent += `<br><span style="color: #f59e0b; font-weight: 600;">📦 PoC知识库:</span> 发现 ${ragFindings.total} 条相关漏洞<br>`;
+                topVulns.slice(0, 3).forEach(v => {
+                    const sevColor = v.severity === 'critical' ? '#dc2626' : v.severity === 'high' ? '#f97316' : '#eab308';
+                    initialContent += `<span style="color: ${sevColor}; font-size: 13px;">⚠ ${escapeHtml(v.name || v.cve_id)}</span><br>`;
+                });
+            }
+
+            const card = document.createElement('div');
+            card.id = 'streaming-card';
+            card.className = 'message bot';
+            card.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">🤖</div>
+                    <span class="message-sender">Hati</span>
+                    <span class="message-time">${time}</span>
+                    <button class="pause-btn" id="pause-btn" onclick="togglePause()" title="暂停/继续">⏸</button>
+                </div>
+                <div class="message-content">
+                    <div class="streaming-card" id="streaming-card-inner">
+                        <div class="streaming-header">
+                            <span class="streaming-phase" id="streaming-phase" style="color: #6366f1;">🚀 初始化</span>
+                            <span class="streaming-cursor"></span>
+                        </div>
+                        <div class="streaming-content" id="streaming-content">
+                            <div class="streaming-line" style="animation-delay: 0ms;">
+                                <span class="streaming-dot">▸</span>
+                                <div class="streaming-text">${initialContent}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+            scrollToBottom();
+            saveConversation();
+        }
+
+        // 添加流式进度 - 追加到主卡片（紧凑自然风格）
+        function addStreamingProgress(data) {
+            const streamingContent = document.getElementById('streaming-content');
+            const streamingPhase = document.getElementById('streaming-phase');
+            if (!streamingContent) return;
+
+            const phase = data.data?.phase || 'running';
+            const step = data.data?.step || '';
+            const details = data.data?.details || '';
+            const reasoning = data.data?.reasoning || '';
+            const tool = data.data?.tool || '';
+            const command = data.data?.command || '';
+            const findings = data.data?.findings || {};
+
+            const phaseNames = {
+                'init': '🚀 初始化',
+                'recon': '🔍 信息收集',
+                'vuln_scan': '🔬 漏洞扫描',
+                'exploit': '💥 漏洞利用',
+                'report': '📋 报告生成',
+                'complete': '✅ 完成'
+            };
+
+            const phaseColors = {
+                'init': '#6366f1',
+                'recon': '#3b82f6',
+                'vuln_scan': '#f59e0b',
+                'exploit': '#ef4444',
+                'report': '#10b981',
+                'complete': '#22c55e'
+            };
+
+            let newContent = '';
+
+            // AI思考 - 自然的内联段落风格
+            if (reasoning) {
+                newContent += `<span style="color: #6366f1; font-style: italic;">💭 ${escapeHtml(reasoning)}</span><br>`;
+            }
+
+            // 工具调用 - 内联风格
+            if (tool) {
+                newContent += `<span style="color: #666; font-size: 13px;">🔧 执行工具: <code style="background: #f1f1f1; padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace;">${escapeHtml(tool)}</code>`;
+                if (command) {
+                    newContent += ` <code style="background: #e5e5e5; padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 11px; color: #666;">${escapeHtml(command)}</code>`;
+                }
+                newContent += `</span><br>`;
+            }
+
+            // 步骤执行 - 紧凑内联
+            if (step && step !== 'complete') {
+                const phaseColor = phaseColors[phase] || '#666';
+                newContent += `<span style="color: ${phaseColor}; font-weight: 500;">▸ ${escapeHtml(step)}</span>`;
+                if (details) {
+                    newContent += ` <span style="color: #666; font-size: 13px;">${escapeHtml(details)}</span>`;
+                }
+                newContent += `<br>`;
+            }
+
+            // 发现结果 - 紧凑内联
+            if (findings.ports && findings.ports.length > 0) {
+                const portList = findings.ports.slice(0, 10).join(' | ');
+                newContent += `<span style="color: #3b82f6; font-size: 13px;">🔍 发现端口: <code style="background: #eff6ff; padding: 2px 6px; border-radius: 4px; font-family: Consolas;">${escapeHtml(portList)}</code></span><br>`;
+            }
+
+            if (findings.nmap_ping) {
+                newContent += `<span style="color: #22c55e; font-size: 13px;">✓ 主机存活</span><br>`;
+            }
+
+            if (findings.vulnerabilities && findings.vulnerabilities.length > 0) {
+                newContent += `<span style="color: #f59e0b; font-size: 13px;">⚠️ 发现 ${findings.vulnerabilities.length} 个潜在漏洞</span><br>`;
+            }
+
+            // 更新阶段标题
+            if (streamingPhase) {
+                streamingPhase.style.color = phaseColors[phase] || '#666';
+                streamingPhase.textContent = phaseNames[phase] || '🔄 分析中';
+            }
+
+            streamingContent.insertAdjacentHTML('beforeend', newContent);
+            scrollToBottom();
+        }
+
+        // 将后端 markdown 格式的摘要转为 HTML
+        function formatResultContent(md) {
+            // 转义 HTML 特殊字符
+            let html = md
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // **粗体** → <strong>
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // 分隔线
+            html = html.replace(/^[━]{10,}$/gm, '<span style="color: #10b981; font-weight: 600;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>');
+
+            // 标题行（🚀 或 📋 开头，后跟分隔线）
+            html = html.replace(/^(.{0,2})(渗透测试任务完成|任务详情)(.{0,2})$/gm,
+                '<span style="color: #10b981; font-weight: 700; font-size: 15px;">$1$2$3</span>');
+
+            // ✅ 或 ❌ 开头的状态行 → 绿色/红色
+            html = html.replace(/^(✅.+)$/gm, '<span style="color: #10b981; font-weight: 600;">$1</span>');
+            html = html.replace(/^(❌.+)$/gm, '<span style="color: #dc2626; font-weight: 600;">$1</span>');
+
+            // **目标**: → 加粗行
+            html = html.replace(/^<strong>目标<\/strong>/gm, '<strong>目标</strong>');
+
+            // 其他 **key**:  → 小标题
+            html = html.replace(/<strong>(执行流程|总步骤数|漏洞统计|工具使用统计|攻击Payload示例|漏洞列表)<\/strong>/g,
+                '<span style="font-weight: 600; color: #1a1a1a;">$1</span>');
+
+            // 子项 • → 缩进
+            html = html.replace(/^   • /gm, '&nbsp;&nbsp;&nbsp;&nbsp;&#8226; ');
+
+            // `code` → <code>
+            html = html.replace(/`([^`]+)`/g, '<code style="background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 12px;">$1</code>');
+
+            // 换行 → <br>
+            html = html.replace(/\n/g, '<br>');
+
+            // 包裹在结果容器中
+            html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">${html}</div>`;
+
+            return html;
+        }
+
+        // 最终结果 - 追加到流式卡片，不替换已有内容（紧凑自然风格）
+        function finalizeStreamingResult(data) {
+            const streamingContent = document.getElementById('streaming-content');
+            const streamingPhase = document.getElementById('streaming-phase');
+            const findings = data.data?.findings || {};
+            const steps = data.data?.steps || [];
+
+            if (!streamingContent) return;
+
+            // 隐藏停止按钮和暂停按钮
+            const stopBtn = document.getElementById('stop-btn');
+            if (stopBtn) {
+                stopBtn.classList.remove('visible');
+            }
+            const pauseBtn = document.getElementById('pause-btn');
+            if (pauseBtn) {
+                pauseBtn.style.display = 'none';
+            }
+            currentTaskId = null;
+            isPaused = false;
+
+            // 更新阶段标题和隐藏光标
+            if (streamingPhase) {
+                streamingPhase.style.color = '#10b981';
+                streamingPhase.textContent = '✅ 完成';
+            }
+            const cursor = document.querySelector('.streaming-cursor');
+            if (cursor) {
+                cursor.style.display = 'none';
+            }
+
+            // 优先使用后端发送的富文本摘要
+            const backendContent = data.content || '';
+            let resultHtml = '';
+
+            if (backendContent && backendContent.trim()) {
+                // 将后端 markdown 内容转为 HTML
+                resultHtml = '<br>' + formatResultContent(backendContent);
+            } else {
+                // 回退：从结构化数据构建摘要
+                const vulnCount = findings.vulnerabilities?.length || 0;
+                const portCount = findings.ports?.length || 0;
+                const criticalCount = findings.vulnerabilities?.filter(v => v.severity === 'critical').length || 0;
+                const highCount = findings.vulnerabilities?.filter(v => v.severity === 'high').length || 0;
+
+                resultHtml = '<br><span style="color: #10b981; font-weight: 600;">━━━ 测试结果 ━━━</span><br><br>';
+
+                if (steps.length > 0) {
+                    const phaseNames = {
+                        'init': '初始化', 'recon': '信息收集', 'vuln_scan': '漏洞扫描',
+                        'exploit': '漏洞利用', 'report': '报告生成', 'complete': '完成'
+                    };
+                    const uniquePhases = [...new Set(steps.map(s => phaseNames[s.phase] || s.phase))];
+                    resultHtml += `<span style="color: #666; font-size: 13px;">执行流程: ${uniquePhases.join(' → ')}</span><br><br>`;
+                }
+
+                if (vulnCount > 0) {
+                    resultHtml += `<span style="color: #dc2626; font-weight: 600;">发现 ${vulnCount} 个漏洞</span> (严重: ${criticalCount}, 高危: ${highCount})<br>`;
+                }
+                if (portCount > 0) {
+                    resultHtml += `<span style="color: #3b82f6;">发现 ${portCount} 个开放端口</span><br>`;
+                }
+
+                if (findings.ports && findings.ports.length > 0) {
+                    resultHtml += '<br><span style="font-weight: 600;">开放端口:</span><br>';
+                    resultHtml += '<div style="background: #f7f7f8; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-family: Consolas, monospace; font-size: 13px;">';
+                    findings.ports.slice(0, 15).forEach(port => {
+                        const portInfo = typeof port === 'string' ? port : `${port.port}/${port.protocol || 'tcp'}`;
+                        resultHtml += `<div><span style="font-weight: 600;">${escapeHtml(portInfo)}</span> <span style="color: #666;">${escapeHtml(port.service || '')}</span></div>`;
+                    });
+                    resultHtml += '</div>';
+                }
+
+                if (findings.vulnerabilities && findings.vulnerabilities.length > 0) {
+                    resultHtml += '<br><span style="font-weight: 600;">漏洞列表:</span><br>';
+                    findings.vulnerabilities.slice(0, 10).forEach(v => {
+                        const sevColor = v.severity === 'critical' ? '#dc2626' : v.severity === 'high' ? '#f97316' : v.severity === 'medium' ? '#eab308' : '#22c55e';
+                        resultHtml += `<div style="margin: 6px 0; padding: 6px 10px; background: #fafafa; border-radius: 6px; border-left: 3px solid ${sevColor};">
+                            <span style="background: ${sevColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">${(v.severity||'').toUpperCase()}</span>
+                            <span style="font-weight: 600; margin-left: 8px;">${escapeHtml(v.name || v.cve_id || 'Unknown')}</span></div>`;
+                    });
+                }
+
+                if (findings.technologies && findings.technologies.length > 0) {
+                    resultHtml += '<br><span style="color: #666;">技术栈: </span>';
+                    resultHtml += findings.technologies.map(t => `<span style="background: #8b5cf620; color: #8b5cf6; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 4px;">${escapeHtml(t)}</span>`).join('');
+                    resultHtml += '<br>';
+                }
+            }
+
+            // 报告下载链接（始终显示，如果后端提供了路径）
+            const reportPath = data.data?.report_path;
+            const reportJsonPath = data.data?.report_json_path;
+            if (reportPath) {
+                resultHtml += '<br><div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px; margin-top: 12px;">';
+                resultHtml += '<span style="color: #166534; font-weight: 600;">报告已生成</span><br>';
+                resultHtml += `<a href="${reportPath}" download style="color: #166534; margin-right: 16px;">Markdown报告</a>`;
+                if (reportJsonPath) {
+                    resultHtml += `<a href="${reportJsonPath}" download style="color: #166534;">JSON报告</a>`;
+                }
+                resultHtml += '</div>';
+            }
+
+            // 追加到卡片
+            streamingContent.insertAdjacentHTML('beforeend', resultHtml);
+            saveConversation();
+            scrollToBottom();
+        }
+
+        // 更新状态
+        function updateStatus(status) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            switch(status) {
+                case 'connected':
+                    dot.classList.add('connected');
+                    text.textContent = '已连接';
+                    break;
+                case 'connecting':
+                    dot.classList.remove('connected');
+                    text.textContent = '连接中...';
+                    break;
+                case 'disconnected':
+                case 'error':
+                    dot.classList.remove('connected');
+                    text.textContent = '未连接';
+                    break;
+            }
+        }
+
+        // 暂停/继续
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pause-btn');
+            if (btn) {
+                btn.textContent = isPaused ? '▶' : '⏸';
+                btn.classList.toggle('paused', isPaused);
+            }
+            // 恢复时清空队列（用户新消息会重新触发）
+            if (!isPaused) {
+                messageQueue = [];
+            }
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+
+            if (!message || !isConnected) return;
+
+            // 恢复暂停状态并清空队列
+            if (isPaused) {
+                isPaused = false;
+                const btn = document.getElementById('pause-btn');
+                if (btn) {
+                    btn.textContent = '⏸';
+                    btn.classList.remove('paused');
+                }
+            }
+            // 清空暂停期间积累的消息
+            messageQueue = [];
+
+            addUserMessage(message);
+            input.value = '';
+            input.style.height = 'auto';
+
+            ws.send(JSON.stringify({
+                content: message
+            }));
+        }
+
+        // 停止当前任务
+        async function stopTask() {
+            if (!currentTaskId) {
+                console.log('No active task to stop');
+                return;
+            }
+
+            const stopBtn = document.getElementById('stop-btn');
+            if (stopBtn) {
+                stopBtn.textContent = '停止中...';
+                stopBtn.disabled = true;
+            }
+
+            try {
+                const response = await fetch(`/api/pentest/cancel/${currentTaskId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // 任务已取消
+                    addBotMessage('任务已被停止', 'error');
+
+                    // 更新卡片显示
+                    const streamingPhase = document.getElementById('streaming-phase');
+                    if (streamingPhase) {
+                        streamingPhase.style.color = '#ef4444';
+                        streamingPhase.textContent = '✗ 已停止';
+                    }
+                } else {
+                    addBotMessage('停止任务失败', 'error');
+                }
+            } catch (error) {
+                console.error('Stop task error:', error);
+                addBotMessage('停止任务失败: ' + error.message, 'error');
+            } finally {
+                currentTaskId = null;
+                if (stopBtn) {
+                    stopBtn.classList.remove('visible');
+                    stopBtn.textContent = '■ 停止';
+                    stopBtn.disabled = false;
+                }
+            }
+        }
+
+        // 显示停止按钮
+        function showStopButton(taskId) {
+            currentTaskId = taskId;
+            const stopBtn = document.getElementById('stop-btn');
+            if (stopBtn) {
+                stopBtn.classList.add('visible');
+            }
+        }
+
+        // 添加用户消息
+        function addUserMessage(content) {
+            hideWelcome();
+            removeThinking();
+
+            const container = document.getElementById('messages-container');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user';
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">👤</div>
+                    <span class="message-sender">您</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${formatContent(content)}</div>
+            `;
+            container.appendChild(messageDiv);
+            scrollToBottom();
+            saveConversation();
+        }
+
+        // 添加机器人消息
+        function addBotMessage(content, type = 'text') {
+            removeThinking();
+
+            const container = document.getElementById('messages-container');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+            let icon = '🤖';
+            if (type === 'error') icon = '❌';
+            if (type === 'result') icon = '✅';
+            if (type === 'action') icon = '⚡';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">${icon}</div>
+                    <span class="message-sender">Hati</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${formatContent(content)}</div>
+            `;
+            container.appendChild(messageDiv);
+            scrollToBottom();
+            saveConversation();
+        }
+
+        function getPhaseName(phase) {
+            const names = {
+                'init': '初始化',
+                'recon': '信息收集',
+                'vuln_scan': '漏洞扫描',
+                'exploit': '漏洞利用',
+                'report': '报告生成',
+                'complete': '完成'
+            };
+            return names[phase] || phase;
+        }
+
+        // 格式化内容
+        function formatContent(content) {
+            let formatted = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\n/g, '<br>');
+
+            return formatted;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // 显示思考中
+        function showThinking() {
+            const container = document.getElementById('messages-container');
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'message bot';
+            thinkingDiv.id = 'thinking-indicator';
+            thinkingDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">🤖</div>
+                    <span class="message-sender">Hati</span>
+                </div>
+                <div class="message-content">
+                    <div class="thinking">
+                        <div class="thinking-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span>正在思考...</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(thinkingDiv);
+            scrollToBottom();
+        }
+
+        // 移除思考指示器
+        function removeThinking() {
+            const indicator = document.getElementById('thinking-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        // 隐藏欢迎屏幕
+        function hideWelcome() {
+            const welcome = document.getElementById('welcome-screen');
+            if (welcome) welcome.style.display = 'none';
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 快捷操作
+        function quickAction(message) {
+            if (!isConnected) {
+                addBotMessage('正在连接，请稍候...', 'text');
+                return;
+            }
+            document.getElementById('message-input').value = message;
+            sendMessage();
+        }
+
+        // 开始新对话
+        function startNewChat() {
+            location.reload();
+        }
+
+        // 输入框事件
+        document.getElementById('message-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.getElementById('message-input').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+
+        // 启动连接
+        connect();
+    </script>
+</body>
+</html>

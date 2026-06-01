@@ -1,0 +1,111 @@
+# Pentest Agent - Docker Compose 配置
+# 用于本地开发环境的快速启动
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # Redis - 消息队列后端
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: pentest-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - pentest-net
+
+  # ==========================================
+  # Elasticsearch - 审计日志存储
+  # ==========================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: pentest-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=pentest-cluster
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pentest-net
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ==========================================
+  # Kibana - ES 可视化界面 (可选)
+  # ==========================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: pentest-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - pentest-net
+    restart: unless-stopped
+
+  # ==========================================
+  # 安全工具容器模板
+  # 默认无网络，用于隔离执行
+  # ==========================================
+  pentest-toolkit:
+    build:
+      context: .
+      dockerfile: Dockerfile.toolkit
+    container_name: pentest-toolkit
+    network_mode: none  # 完全隔离
+    read_only: true     # 只读文件系统
+    tmpfs:
+      - /tmp:size=100M,mode=1777
+    volumes:
+      - toolkit_results:/pentest/results
+      - toolkit_pocs:/pentest/pocs
+    command: ["sleep", "infinity"]  # 保持运行等待任务
+    restart: unless-stopped
+    networks:
+      - pentest-net
+
+volumes:
+  redis_data:
+    driver: local
+  es_data:
+    driver: local
+  toolkit_results:
+    driver: local
+  toolkit_pocs:
+    driver: local
+
+networks:
+  pentest-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

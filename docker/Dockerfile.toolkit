@@ -1,0 +1,80 @@
+# Pentest Agent - 安全工具容器镜像
+# 基于 Kali Linux 官方镜像，包含核心渗透测试工具
+
+FROM kalilinux/kali-rolling:latest
+
+# 避免交互式提示
+ENV DEBIAN_FRONTEND=noninteractive
+ENV APT_KEY_DONT_SIGN_ONCE=1
+
+# 更新并安装核心安全工具
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    # 网络扫描工具
+    nmap \
+    masscan \
+    rustscan \
+    # 子域名枚举
+    amass \
+    subfinder \
+    # Web 扫描工具
+    gobuster \
+    ffuf \
+    dirb \
+    dirbuster \
+    nuclei \
+    nikto \
+    sqlmap \
+    wpscan \
+    # HTTP 工具
+    httpx \
+    curl \
+    wget \
+    # 密码攻击工具
+    hydra \
+    john \
+    hashcat \
+    medusa \
+    patator \
+    # 二进制分析
+    binwalk \
+    radare2 \
+    gdb \
+    checksec \
+    strings \
+    objdump \
+    # 信息收集
+    theharvester \
+    recon-ng \
+    sparta \
+    # 其他常用工具
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    tmux \
+    vim \
+    netcat-traditional \
+    tcpdump \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /pentest
+
+# 复制工具脚本目录
+RUN mkdir -p /pentest/tools /pentest/results /pentest/pocs
+
+# 创建非 root 用户 (可选，安全性考虑)
+# RUN useradd -m -s /bin/bash pentester && \
+#     chown -R pentester:pentester /pentest
+
+# 默认不使用 root 运行 (安全增强)
+USER root
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD nmap --version > /dev/null 2>&1 || exit 1
+
+# 默认命令
+CMD ["/bin/bash"]
