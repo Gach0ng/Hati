@@ -12,7 +12,7 @@
 **Hati** 源自北欧神话中追逐月亮的魔狼。每逢月夜，它便跨越天空追猎明月，直到诸神黄昏降临将其吞噬。
 
 渗透测试亦是如此 — 耐心追踪目标的每一寸攻击面，不放过任何隐藏的弱点，直至发现突破口。
-<img width="1701" height="1137" alt="image" src="https://github.com/user-attachments/assets/f612ad24-d1ad-4ceb-aa1a-4716e1c2c43a" />
+<img width="1275" height="1275" alt="Hati" src="https://github.com/user-attachments/assets/a6ccb49a-9e03-451d-941a-ca950258927c" />
 
 🐺 Hati — 追月之狼
 追猎漏洞，永不停歇
